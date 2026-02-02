@@ -25,11 +25,11 @@ Fleet Assistant is an AutoHotkey v2.0 automation script designed to manage your 
    - Download and install from https://www.autohotkey.com/
 
 2. **Download Fleet Assistant**
-   - Save `FleetAssistant.ahk` to a folder of your choice
+   - Save `FleetAssistant.ahk` or `FleetAssistant.exe` to a folder of your choice
    - Recommended: Create a dedicated folder (e.g., `C:\ArcaneOdysseyTools\FleetAssistant.ahk\`)
 
 3. **Run the Script**
-   - Double-click `FleetAssistant.ahk` to launch
+   - Double-click `FleetAssistant.ahk` or `FleetAssistant.exe` to launch
    - The GUI will appear in the top-left corner of your screen
 
 ---
@@ -38,9 +38,7 @@ Fleet Assistant is an AutoHotkey v2.0 automation script designed to manage your 
 
 ### First Time Setup
 
-1. **Launch the script** by double-clicking `FleetAssistant.ahk`
-
-2. **Configure your settings** in the GUI:
+1. **Configure your settings** in the GUI:
    - Set your RavenKey (default: `1`)
    - Set your FleetKey (default: `y`)
    - Choose Fleet Risk mode
@@ -48,17 +46,17 @@ Fleet Assistant is an AutoHotkey v2.0 automation script designed to manage your 
    - Adjust timers if needed
    - Increase the number of Repair Wait Time if you have bad connection ( 1s = 1000ms )
 
-3. **Save your settings** by clicking the "💾 SAVE SETTINGS" button
+2. **Save your settings** by clicking the "💾 SAVE SETTINGS" button
 
-4. **Little setup on Roblox** make sure UI Navigation Toggle is On
+3. **Little setup on Roblox** make sure UI Navigation Toggle is On
 
-5. **Tool bar sorting** move all the stuff in your hotbar into inventory, and put ONLY Raven on your hotbar
+4. **Tool bar sorting** move all the stuff in your hotbar into inventory, and put ONLY Raven on your hotbar
 
-6. **Focus on your Roblox** make sure focus on Roblox, if not sure then click on Roblox once before pressing `F1`
+5. **Focus on your Roblox** make sure focus on Roblox, if not sure then click on Roblox once before pressing `F1`
+ 
+6. **Start automation** by pressing `F1`
 
-7. **Start automation** by pressing `F1`
-
-8. **Let it run!** The script will handle everything automatically
+7. **Let it run!** The script will handle everything automatically
 
 ## 🔄 How It Works
 
