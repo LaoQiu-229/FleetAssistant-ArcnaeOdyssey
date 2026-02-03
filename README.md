@@ -25,11 +25,11 @@ Fleet Assistant is an AutoHotkey v2.0 automation script designed to manage your 
    - Download and install from https://www.autohotkey.com/
 
 2. **Download Fleet Assistant**
-   - Save `FleetAssistant.ahk` or `FleetAssistant.exe` to a folder of your choice
+   - Save `FleetAssistant.ahk` to a folder of your choice
    - Recommended: Create a dedicated folder (e.g., `C:\ArcaneOdysseyTools\FleetAssistant.ahk\`)
 
 3. **Run the Script**
-   - Double-click `FleetAssistant.ahk` or `FleetAssistant.exe` to launch
+   - Double-click `FleetAssistant.ahk` to launch
    - The GUI will appear in the top-left corner of your screen
 
 ---
