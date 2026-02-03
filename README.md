@@ -120,13 +120,13 @@ The script alternates between two cycles:
 
 ```
 Continuous repairs:
-└─ Every 3 minutes (default):
+└─ Every 3 minutes:
    └─ Navigate to repair menu
    └─ Execute repairs
    └─ Return to operations
 ```
 
-### Example Timeline (Default Settings)
+### Example Timeline
 
 ```
 00:00 - Start (F1 pressed)
