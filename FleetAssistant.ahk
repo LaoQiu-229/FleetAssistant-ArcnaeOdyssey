@@ -2,9 +2,10 @@
 #SingleInstance Force
 
 ; ========================================================================================
-; Global Variables
+; Global Variables - GUI Controls
 ; ========================================================================================
 global GuiObj := ""
+global StatusGuiObj := ""
 global RavenKeyInput := ""
 global FleetKeyInput := ""
 global FleetRiskDropdown := ""
@@ -13,37 +14,55 @@ global Deck2Dropdown := ""
 global Deck3Dropdown := ""
 global Deck4Dropdown := ""
 global RepairWaitInput := ""
-global RecoverRestockTimerInput := ""
+global RecoverTimerInput := ""
+global ResuppliesTimerInput := ""
 global RepairTimerInput := ""
-global SettingBackTimerInput := ""
+global ResumeTaskTimerInput := ""
 
+; ========================================================================================
+; Global Variables - Settings
+; ========================================================================================
 global RavenKey := "8"
 global FleetKey := "y"
 global FleetRisk := "Maximize Profit"
 global Deck1Task := "Trading"
-global Deck2Task := "Petrol/Plunder"
+global Deck2Task := "Trading"
 global Deck3Task := "Recover"
 global Deck4Task := "Recover"
-global RepairWaitTime := 2500
-global RecoverRestockTimer := 1800
-global RepairTimer := 240
-global SettingBackTimer := 1200
+global RepairWaitTime := 2000
+global RecoverTimer := 3600
+global ResuppliesTimer := 300
+global RepairTimer := 150
+global ResumeTaskTimer := 600
 
+; ========================================================================================
+; Global Variables - State Management
+; ========================================================================================
 global IsRunning := false
 global ActionInProgress := false
-global RecoverRestockTimerActive := true
-global SettingBackTimerActive := false
-global RecoverRestockTimerObj := ""
-global RepairTimerObj := ""
-global SettingBackTimerObj := ""
+global ResuppliesInProgress := false
 global PendingRepair := false
+global PendingResupplies := false
+global RecoverTimerActive := true
+global ResumeTaskTimerActive := false
 
-; Tooltip timer tracking variables
+; ========================================================================================
+; Global Variables - Timer Objects
+; ========================================================================================
+global RecoverTimerObj := ""
+global ResuppliesTimerObj := ""
+global RepairTimerObj := ""
+global ResumeTaskTimerObj := ""
+global TooltipUpdateTimer := ""
+
+; ========================================================================================
+; Global Variables - Timer Tracking
+; ========================================================================================
 global StartTime := 0
 global LastRepairTime := 0
-global LastRecoverRestockTime := 0
-global LastSettingBackTime := 0
-global TooltipUpdateTimer := ""
+global LastResuppliesTime := 0
+global LastRecoverTime := 0
+global LastResumeTaskTime := 0
 
 ; ========================================================================================
 ; Load Settings on Startup
@@ -54,6 +73,7 @@ LoadSettings()
 ; Create GUI
 ; ========================================================================================
 CreateGUI()
+CreateStatusGUI()
 
 ; ========================================================================================
 ; Hotkeys
@@ -93,9 +113,10 @@ LoadSettings() {
                 case "Deck3Task": global Deck3Task := value
                 case "Deck4Task": global Deck4Task := value
                 case "RepairWaitTime": global RepairWaitTime := Integer(value)
-                case "RecoverRestockTimer": global RecoverRestockTimer := Integer(value)
+                case "RecoverTimer": global RecoverTimer := Integer(value)
+                case "ResuppliesTimer": global ResuppliesTimer := Integer(value)
                 case "RepairTimer": global RepairTimer := Integer(value)
-                case "SettingBackTimer": global SettingBackTimer := Integer(value)
+                case "ResumeTaskTimer": global ResumeTaskTimer := Integer(value)
             }
         }
     }
@@ -113,9 +134,10 @@ SaveSettings(*) {
     global Deck3Task := Deck3Dropdown.Text
     global Deck4Task := Deck4Dropdown.Text
     global RepairWaitTime := Integer(RepairWaitInput.Value)
-    global RecoverRestockTimer := Integer(RecoverRestockTimerInput.Value)
+    global RecoverTimer := Integer(RecoverTimerInput.Value)
+    global ResuppliesTimer := Integer(ResuppliesTimerInput.Value)
     global RepairTimer := Integer(RepairTimerInput.Value)
-    global SettingBackTimer := Integer(SettingBackTimerInput.Value)
+    global ResumeTaskTimer := Integer(ResumeTaskTimerInput.Value)
     
     content := ""
     content .= "RavenKey=" . RavenKey . "`n"
@@ -126,9 +148,10 @@ SaveSettings(*) {
     content .= "Deck3Task=" . Deck3Task . "`n"
     content .= "Deck4Task=" . Deck4Task . "`n"
     content .= "RepairWaitTime=" . RepairWaitTime . "`n"
-    content .= "RecoverRestockTimer=" . RecoverRestockTimer . "`n"
+    content .= "RecoverTimer=" . RecoverTimer . "`n"
+    content .= "ResuppliesTimer=" . ResuppliesTimer . "`n"
     content .= "RepairTimer=" . RepairTimer . "`n"
-    content .= "SettingBackTimer=" . SettingBackTimer . "`n"
+    content .= "ResumeTaskTimer=" . ResumeTaskTimer . "`n"
     
     try {
         FileDelete(settingFile)
@@ -219,25 +242,27 @@ CreateGUI() {
     GuiObj.Add("Text", "x250 y" . (yPos + 2) . " w140", "1sec = 1000ms").SetFont("s8 c0x666666")
     yPos += 45
     
-    ; Timer Settings
-    GuiObj.Add("Text", "x20 y" . yPos . " w360", "Timer Settings").SetFont("s9 c0x888888")
-    yPos += 20
+    GuiObj.Add("Text", "x20 y" . yPos . " w120", "Recover Timer:")
+    global RecoverTimerInput := GuiObj.Add("Edit", "x140 y" . yPos . " w100", RecoverTimer)
+    RecoverTimerInput.SetFont("s9 c0x000000")
+    GuiObj.Add("Text", "x250 y" . (yPos + 2) . " w100", "seconds").SetFont("s8 c0x666666")
+    yPos += 35
     
-    GuiObj.Add("Text", "x20 y" . yPos . " w120", "Recover & Restock:")
-    global RecoverRestockTimerInput := GuiObj.Add("Edit", "x140 y" . yPos . " w100", RecoverRestockTimer)
-    RecoverRestockTimerInput.SetFont("s9 c0x000000")
+    GuiObj.Add("Text", "x20 y" . yPos . " w120", "Resume Task Timer:")
+    global ResumeTaskTimerInput := GuiObj.Add("Edit", "x140 y" . yPos . " w100", ResumeTaskTimer)
+    ResumeTaskTimerInput.SetFont("s9 c0x000000")
+    GuiObj.Add("Text", "x250 y" . (yPos + 2) . " w100", "seconds").SetFont("s8 c0x666666")
+    yPos += 35
+    
+    GuiObj.Add("Text", "x20 y" . yPos . " w120", "Resupplies Timer:")
+    global ResuppliesTimerInput := GuiObj.Add("Edit", "x140 y" . yPos . " w100", ResuppliesTimer)
+    ResuppliesTimerInput.SetFont("s9 c0x000000")
     GuiObj.Add("Text", "x250 y" . (yPos + 2) . " w100", "seconds").SetFont("s8 c0x666666")
     yPos += 35
     
     GuiObj.Add("Text", "x20 y" . yPos . " w120", "Repair Timer:")
     global RepairTimerInput := GuiObj.Add("Edit", "x140 y" . yPos . " w100", RepairTimer)
     RepairTimerInput.SetFont("s9 c0x000000")
-    GuiObj.Add("Text", "x250 y" . (yPos + 2) . " w100", "seconds").SetFont("s8 c0x666666")
-    yPos += 35
-    
-    GuiObj.Add("Text", "x20 y" . yPos . " w120", "Setting Back Task:")
-    global SettingBackTimerInput := GuiObj.Add("Edit", "x140 y" . yPos . " w100", SettingBackTimer)
-    SettingBackTimerInput.SetFont("s9 c0x000000")
     GuiObj.Add("Text", "x250 y" . (yPos + 2) . " w100", "seconds").SetFont("s8 c0x666666")
     yPos += 45
     
@@ -246,86 +271,81 @@ CreateGUI() {
     saveBtn.SetFont("s10 Bold c0x000000")
     saveBtn.OnEvent("Click", SaveSettings)
     yPos += 45
+
+    ; Function Key
+    GuiObj.Add("Text", "x20 y" . yPos . " w360", "F1: Start  F2:  Reload F3:  Exit").SetFont("s9 c0x888888")
+    yPos += 20
     
-    ; Control Instructions
-    GuiObj.Add("Text", "x20 y" . yPos . " w360 Center", "F1: Start  |  F2: Reload  |  F3: Exit").SetFont("s8 c0x666666")
-    yPos += 25
-    
+    ; Position at top-left
     GuiObj.Show("x0 y0 w400 h" . yPos)
+}
+
+CreateStatusGUI() {
+    global StatusGuiObj := Gui("-Caption +AlwaysOnTop +ToolWindow +Disabled", "Fleet Status")
+    StatusGuiObj.BackColor := "0x1A1A1A"
+    StatusGuiObj.SetFont("s9 c0xFFFFFF", "Consolas")
+    
+    ; Status display will be updated via tooltip instead
+    StatusGuiObj.Hide()
 }
 
 ; ========================================================================================
 ; Functions - Script Control
 ; ========================================================================================
 StartScript() {
-    global IsRunning, RecoverRestockTimerActive, SettingBackTimerActive
+    global IsRunning, ActionInProgress, StartTime
     
-    if IsRunning
+    if IsRunning {
+        MsgBox("Script is already running!", "Fleet Assistant", "0x30")
         return
+    }
     
-    ; Update global variables from GUI
-    global RavenKey := RavenKeyInput.Value
-    global FleetKey := FleetKeyInput.Value
-    global FleetRisk := FleetRiskDropdown.Text
-    global Deck1Task := Deck1Dropdown.Text
-    global Deck2Task := Deck2Dropdown.Text
-    global Deck3Task := Deck3Dropdown.Text
-    global Deck4Task := Deck4Dropdown.Text
-    global RepairWaitTime := Integer(RepairWaitInput.Value)
-    global RecoverRestockTimer := Integer(RecoverRestockTimerInput.Value)
-    global RepairTimer := Integer(RepairTimerInput.Value)
-    global SettingBackTimer := Integer(SettingBackTimerInput.Value)
+    IsRunning := true
+    ActionInProgress := true
+    StartTime := A_TickCount
     
-    global IsRunning := true
-    global ActionInProgress := true
-    global RecoverRestockTimerActive := true
-    global SettingBackTimerActive := false
-    global PendingRepair := false
-    
-    ; Initialize timing for tooltip
-    global StartTime := A_TickCount
+    ; Initialize timer tracking
+    global LastRecoverTime := A_TickCount
+    global LastResuppliesTime := A_TickCount
     global LastRepairTime := A_TickCount
-    global LastRecoverRestockTime := A_TickCount
-    global LastSettingBackTime := 0
+    global LastResumeTaskTime := 0
     
-    ; Start tooltip update timer (updates every 500ms)
+    ; Start tooltip update timer
     global TooltipUpdateTimer := () => UpdateTooltip()
     SetTimer(TooltipUpdateTimer, 500)
     
-    ; Run startup phase
-    RunStartupPhase()
+    ; Execute startup phase
+    ExecuteStartupPhase()
 }
 
 ExitScript(*) {
-    global IsRunning, ActionInProgress
-    global RecoverRestockTimerObj, RepairTimerObj, SettingBackTimerObj, TooltipUpdateTimer
-    
-    IsRunning := false
-    ActionInProgress := false
+    global IsRunning := false
     
     ; Stop all timers
-    if RecoverRestockTimerObj
-        SetTimer(RecoverRestockTimerObj, 0)
-    if RepairTimerObj
+    if (RecoverTimerObj != "")
+        SetTimer(RecoverTimerObj, 0)
+    if (ResuppliesTimerObj != "")
+        SetTimer(ResuppliesTimerObj, 0)
+    if (RepairTimerObj != "")
         SetTimer(RepairTimerObj, 0)
-    if SettingBackTimerObj
-        SetTimer(SettingBackTimerObj, 0)
-    if TooltipUpdateTimer
+    if (ResumeTaskTimerObj != "")
+        SetTimer(ResumeTaskTimerObj, 0)
+    if (TooltipUpdateTimer != "")
         SetTimer(TooltipUpdateTimer, 0)
     
     ; Clear tooltip
     ToolTip()
     
-    ExitApp()
+    ExitApp
 }
 
 ; ========================================================================================
 ; Functions - Tooltip Update
 ; ========================================================================================
 UpdateTooltip() {
-    global IsRunning, StartTime, LastRepairTime, LastRecoverRestockTime, LastSettingBackTime
-    global RecoverRestockTimerActive, SettingBackTimerActive
-    global RecoverRestockTimer, RepairTimer, SettingBackTimer
+    global IsRunning, StartTime, LastRepairTime, LastResuppliesTime, LastRecoverTime, LastResumeTaskTime
+    global RecoverTimer, ResuppliesTimer, RepairTimer, ResumeTaskTimer
+    global RecoverTimerActive, ResumeTaskTimerActive
     
     if !IsRunning {
         ToolTip()
@@ -333,65 +353,84 @@ UpdateTooltip() {
     }
     
     currentTime := A_TickCount
-    runningSeconds := Floor((currentTime - StartTime) / 1000)
     
-    ; Format running time
-    runHours := Floor(runningSeconds / 3600)
-    runMinutes := Floor(Mod(runningSeconds, 3600) / 60)
-    runSecs := Mod(runningSeconds, 60)
-    runningTime := Format("{:02d}:{:02d}:{:02d}", runHours, runMinutes, runSecs)
+    ; Calculate running time
+    elapsedMs := currentTime - StartTime
+    hours := Floor(elapsedMs / 3600000)
+    minutes := Floor(Mod(elapsedMs, 3600000) / 60000)
+    seconds := Floor(Mod(elapsedMs, 60000) / 1000)
+    runningTime := Format("{:02d}:{:02d}:{:02d}", hours, minutes, seconds)
     
-    ; Calculate next repair time
-    repairElapsed := Floor((currentTime - LastRepairTime) / 1000)
-    repairRemaining := RepairTimer - repairElapsed
-    if (repairRemaining < 0)
-        repairRemaining := 0
-    repairMins := Floor(repairRemaining / 60)
-    repairSecs := Mod(repairRemaining, 60)
-    nextRepair := Format("{:02d}:{:02d}", repairMins, repairSecs)
-    
-    ; Calculate next recover/restock or setting back time
-    nextRecover := "--"
-    nextSettingBack := "--"
-    
-    if RecoverRestockTimerActive {
-        recoverElapsed := Floor((currentTime - LastRecoverRestockTime) / 1000)
-        recoverRemaining := RecoverRestockTimer - recoverElapsed
+    ; Calculate next Recover (only if active)
+    if RecoverTimerActive {
+        recoverRemaining := (RecoverTimer * 1000) - (currentTime - LastRecoverTime)
         if (recoverRemaining < 0)
             recoverRemaining := 0
-        recoverMins := Floor(recoverRemaining / 60)
-        recoverSecs := Mod(recoverRemaining, 60)
-        nextRecover := Format("{:02d}:{:02d}", recoverMins, recoverSecs)
+        recoverMin := Floor(recoverRemaining / 60000)
+        recoverSec := Floor(Mod(recoverRemaining, 60000) / 1000)
+        nextRecover := Format("{:02d}:{:02d}", recoverMin, recoverSec)
+    } else {
+        nextRecover := "--"
     }
     
-    if SettingBackTimerActive {
-        settingElapsed := Floor((currentTime - LastSettingBackTime) / 1000)
-        settingRemaining := SettingBackTimer - settingElapsed
-        if (settingRemaining < 0)
-            settingRemaining := 0
-        settingMins := Floor(settingRemaining / 60)
-        settingSecs := Mod(settingRemaining, 60)
-        nextSettingBack := Format("{:02d}:{:02d}", settingMins, settingSecs)
+    ; Calculate next Resume Task (only if active)
+    if ResumeTaskTimerActive {
+        resumeRemaining := (ResumeTaskTimer * 1000) - (currentTime - LastResumeTaskTime)
+        if (resumeRemaining < 0)
+            resumeRemaining := 0
+        resumeMin := Floor(resumeRemaining / 60000)
+        resumeSec := Floor(Mod(resumeRemaining, 60000) / 1000)
+        nextResume := Format("{:02d}:{:02d}", resumeMin, resumeSec)
+    } else {
+        nextResume := "--"
     }
     
-    ; Build tooltip text
+    ; Calculate next Resupplies
+    resuppliesRemaining := (ResuppliesTimer * 1000) - (currentTime - LastResuppliesTime)
+    if (resuppliesRemaining < 0)
+        resuppliesRemaining := 0
+    resuppliesMin := Floor(resuppliesRemaining / 60000)
+    resuppliesSec := Floor(Mod(resuppliesRemaining, 60000) / 1000)
+    nextResupplies := Format("{:02d}:{:02d}", resuppliesMin, resuppliesSec)
+    
+    ; Calculate next Repair
+    repairRemaining := (RepairTimer * 1000) - (currentTime - LastRepairTime)
+    if (repairRemaining < 0)
+        repairRemaining := 0
+    repairMin := Floor(repairRemaining / 60000)
+    repairSec := Floor(Mod(repairRemaining, 60000) / 1000)
+    nextRepair := Format("{:02d}:{:02d}", repairMin, repairSec)
+    
+    ; Build tooltip text (Order: Recover > Resume > Resupplies > Repair)
     tooltipText := "⚓ Fleet Assistant Status`n"
     tooltipText .= "━━━━━━━━━━━━━━━━━━━━━━`n"
     tooltipText .= "Running Time: " . runningTime . "`n"
     tooltipText .= "━━━━━━━━━━━━━━━━━━━━━━`n"
-    tooltipText .= "Next Repair: " . nextRepair . "`n"
     tooltipText .= "Next Recover: " . nextRecover . "`n"
-    tooltipText .= "Next Set Back: " . nextSettingBack
+    tooltipText .= "Next Resume: " . nextResume . "`n"
+    tooltipText .= "Next Resupplies: " . nextResupplies . "`n"
+    tooltipText .= "Next Repair: " . nextRepair
     
-    ; Display tooltip at fixed position (top-right corner)
-    ToolTip(tooltipText, A_ScreenWidth - 250, 10)
+    ; Display tooltip at top-right
+    ToolTip(tooltipText, A_ScreenWidth - 250, 0)
 }
 
 ; ========================================================================================
-; Functions - Navigation
+; Functions - Navigation Core
 ; ========================================================================================
+NavigateToStartArea() {
+    Send("\")
+    Sleep(100)
+    
+    Loop 20 {
+        Send("w")
+        Sleep(25)
+    }
+    
+    Sleep(100)
+}
+
 ClickCenter() {
-    ; Get screen dimensions and click at center
     screenWidth := A_ScreenWidth
     screenHeight := A_ScreenHeight
     centerX := screenWidth / 2
@@ -400,14 +439,9 @@ ClickCenter() {
     Sleep(1250)
 }
 
-NavigateToStartArea() {
-    Send("\")
-    Loop 20 {
-        Sleep(25)
-        Send("w")
-    }
-}
-
+; ========================================================================================
+; Functions - Navigation to Menus
+; ========================================================================================
 NavigateToCommandTask() {
     NavigateToStartArea()
     Sleep(100)
@@ -416,9 +450,10 @@ NavigateToCommandTask() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
-NavigateToRestock() {
+NavigateToResupplies() {
     NavigateToStartArea()
     Sleep(100)
     Send("s")
@@ -428,6 +463,7 @@ NavigateToRestock() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
 NavigateToFleetRisk() {
@@ -442,6 +478,7 @@ NavigateToFleetRisk() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
 NavigateToDeck1() {
@@ -452,6 +489,7 @@ NavigateToDeck1() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
 NavigateToDeck2() {
@@ -464,6 +502,7 @@ NavigateToDeck2() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
 NavigateToDeck3() {
@@ -478,6 +517,7 @@ NavigateToDeck3() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
 NavigateToDeck4() {
@@ -494,106 +534,7 @@ NavigateToDeck4() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
-}
-
-NavigateToTask(task) {
-    NavigateToStartArea()
     Sleep(100)
-    Send("d")
-    Sleep(100)
-    
-    switch task {
-        case "Exploring":
-            ; d already sent, just enter
-        case "Recover":
-            Send("s")
-            Sleep(100)
-        case "Petrol/Plunder":
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-        case "Fishing":
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-        case "Harvesting":
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-        case "Conquest":
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-        case "Trading":
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-            Send("s")
-            Sleep(100)
-    }
-    
-    Send("{Enter}")
-    Sleep(100)
-    Send("\")
-}
-
-NavigateToYes() {
-    NavigateToStartArea()
-    Sleep(100)
-    Send("d")
-    Sleep(100)
-    Send("s")
-    Sleep(100)
-    Send("a")
-    Sleep(100)
-    Send("{Enter}")
-    Sleep(100)
-    Send("\")
-}
-
-NavigateToMaximizeProfit() {
-    NavigateToStartArea()
-    Sleep(100)
-    Send("d")
-    Sleep(100)
-    Send("{Enter}")
-    Sleep(100)
-    Send("\")
-}
-
-NavigateToMinimizeProfit() {
-    NavigateToStartArea()
-    Sleep(100)
-    Send("d")
-    Sleep(100)
-    Send("s")
-    Sleep(100)
-    Send("{Enter}")
-    Sleep(100)
-    Send("\")
 }
 
 NavigateToRepairShip() {
@@ -624,12 +565,129 @@ NavigateToRepairShip() {
     Send("{Enter}")
     Sleep(100)
     Send("\")
+    Sleep(100)
 }
 
 ; ========================================================================================
-; Functions - Script Phases
+; Functions - Navigation to Tasks
 ; ========================================================================================
-RunStartupPhase() {
+NavigateToTask(taskName) {
+    NavigateToStartArea()
+    Sleep(100)
+    Send("d")
+    Sleep(100)
+    
+    switch taskName {
+        case "Exploring":
+            ; Already at Exploring (d)
+            
+        case "Recover":
+            Send("s")
+            Sleep(100)
+            
+        case "Petrol/Plunder":
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            
+        case "Fishing":
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            
+        case "Harvesting":
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            
+        case "Conquest":
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            
+        case "Trading":
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+            Send("s")
+            Sleep(100)
+    }
+    
+    Send("{Enter}")
+    Sleep(100)
+    Send("\")
+    Sleep(100)
+}
+
+; ========================================================================================
+; Functions - Navigation to Special Actions
+; ========================================================================================
+NavigateToYes() {
+    NavigateToStartArea()
+    Sleep(100)
+    Send("d")
+    Sleep(100)
+    Send("s")
+    Sleep(100)
+    Send("a")
+    Sleep(100)
+    Send("{Enter}")
+    Sleep(100)
+    Send("\")
+    Sleep(100)
+}
+
+NavigateToMaximizeProfit() {
+    NavigateToStartArea()
+    Sleep(100)
+    Send("d")
+    Sleep(100)
+    Send("{Enter}")
+    Sleep(100)
+    Send("\")
+    Sleep(100)
+}
+
+NavigateToMinimizeProfit() {
+    NavigateToStartArea()
+    Sleep(100)
+    Send("d")
+    Sleep(100)
+    Send("s")
+    Sleep(100)
+    Send("{Enter}")
+    Sleep(100)
+    Send("\")
+    Sleep(100)
+}
+
+; ========================================================================================
+; Functions - Startup Phase
+; ========================================================================================
+ExecuteStartupPhase() {
     global ActionInProgress, IsRunning
     
     if !IsRunning
@@ -646,6 +704,9 @@ RunStartupPhase() {
     NavigateToTask(Deck1Task)
     Sleep(2500)
     
+    if !IsRunning
+        return
+    
     ; Set Deck 2
     Send(RavenKey)
     Sleep(250)
@@ -654,6 +715,9 @@ RunStartupPhase() {
     NavigateToDeck2()
     NavigateToTask(Deck2Task)
     Sleep(2500)
+    
+    if !IsRunning
+        return
     
     ; Set Deck 3
     Send(RavenKey)
@@ -664,6 +728,9 @@ RunStartupPhase() {
     NavigateToTask(Deck3Task)
     Sleep(2500)
     
+    if !IsRunning
+        return
+    
     ; Set Deck 4
     Send(RavenKey)
     Sleep(250)
@@ -673,8 +740,12 @@ RunStartupPhase() {
     NavigateToTask(Deck4Task)
     Sleep(2500)
     
+    if !IsRunning
+        return
+    
     ; Set Fleet Risk
     Send(RavenKey)
+    Sleep(250)
     ClickCenter()
     NavigateToFleetRisk()
     
@@ -685,38 +756,45 @@ RunStartupPhase() {
     
     Sleep(2500)
     
-    ; Initial Restock if Maximize Profit
-    if (FleetRisk = "Maximize Profit") {
-        Send(RavenKey)
-        Sleep(250)
-        ClickCenter()
-        NavigateToRestock()
-        Sleep(500)
-        NavigateToYes()
-    }
-    
     ActionInProgress := false
     
-    ; Start main timers
+    ; Start main loop timers
     StartMainLoop()
 }
 
+; ========================================================================================
+; Functions - Main Loop
+; ========================================================================================
 StartMainLoop() {
-    global RecoverRestockTimerObj, RepairTimerObj
+    global RecoverTimerObj, ResuppliesTimerObj, RepairTimerObj
+    global RecoverTimerActive, LastRecoverTime, LastResuppliesTime, LastRepairTime
     
-    ; Start Recover & Restock Timer
-    RecoverRestockTimerObj := () => OnRecoverRestockTimer()
-    SetTimer(RecoverRestockTimerObj, RecoverRestockTimer * 1000)
+    ; Initialize timer states
+    RecoverTimerActive := true
+    LastRecoverTime := A_TickCount
+    LastResuppliesTime := A_TickCount
+    LastRepairTime := A_TickCount
     
-    ; Start Repair Timer
+    ; Start Recover Timer
+    RecoverTimerObj := () => OnRecoverTimer()
+    SetTimer(RecoverTimerObj, RecoverTimer * 1000)
+    
+    ; Start Resupplies Timer (independent)
+    ResuppliesTimerObj := () => OnResuppliesTimer()
+    SetTimer(ResuppliesTimerObj, ResuppliesTimer * 1000)
+    
+    ; Start Repair Timer (independent)
     RepairTimerObj := () => OnRepairTimer()
     SetTimer(RepairTimerObj, RepairTimer * 1000)
 }
 
-OnRecoverRestockTimer() {
-    global IsRunning, ActionInProgress, RecoverRestockTimerActive
+; ========================================================================================
+; Timer Event 1: Recover Timer
+; ========================================================================================
+OnRecoverTimer() {
+    global IsRunning, ActionInProgress, RecoverTimerActive, ResumeTaskTimerActive
     
-    if !IsRunning || !RecoverRestockTimerActive
+    if !IsRunning || !RecoverTimerActive
         return
     
     ; Wait if action is in progress
@@ -729,14 +807,19 @@ OnRecoverRestockTimer() {
     
     ActionInProgress := true
     
-    ; Set Deck 1 to Petrol/Plunder
+    ; Set Deck 1 to Recover
     Send(RavenKey)
     Sleep(250)
     ClickCenter()
     NavigateToCommandTask()
     NavigateToDeck1()
-    NavigateToTask("Petrol/Plunder")
+    NavigateToTask("Recover")
     Sleep(2500)
+    
+    if !IsRunning {
+        ActionInProgress := false
+        return
+    }
     
     ; Set Deck 2 to Recover
     Send(RavenKey)
@@ -747,6 +830,11 @@ OnRecoverRestockTimer() {
     NavigateToTask("Recover")
     Sleep(2500)
     
+    if !IsRunning {
+        ActionInProgress := false
+        return
+    }
+    
     ; Set Deck 3 to Recover
     Send(RavenKey)
     Sleep(250)
@@ -755,6 +843,11 @@ OnRecoverRestockTimer() {
     NavigateToDeck3()
     NavigateToTask("Recover")
     Sleep(2500)
+    
+    if !IsRunning {
+        ActionInProgress := false
+        return
+    }
     
     ; Set Deck 4 to Recover
     Send(RavenKey)
@@ -765,37 +858,136 @@ OnRecoverRestockTimer() {
     NavigateToTask("Recover")
     Sleep(2500)
     
-    ; Restock if Maximize Profit
-    if (FleetRisk = "Maximize Profit") {
-        Send(RavenKey)
-        Sleep(250)
-        ClickCenter()
-        NavigateToRestock()
-        Sleep(500)
-        NavigateToYes()
-    }
+    ; Switch to Resume Task Timer
+    global RecoverTimerActive := false
+    global ResumeTaskTimerActive := true
+    global LastResumeTaskTime := A_TickCount
+    SetTimer(RecoverTimerObj, 0)
     
-    ; Switch timers
-    global RecoverRestockTimerActive := false
-    global SettingBackTimerActive := true
-    global LastSettingBackTime := A_TickCount
-    SetTimer(RecoverRestockTimerObj, 0)
-    
-    global SettingBackTimerObj := () => OnSettingBackTimer()
-    SetTimer(SettingBackTimerObj, SettingBackTimer * 1000)
+    global ResumeTaskTimerObj := () => OnResumeTaskTimer()
+    SetTimer(ResumeTaskTimerObj, ResumeTaskTimer * 1000)
     
     ActionInProgress := false
     
-    ; Check if repair is pending
-    if PendingRepair {
+    ; Check if repair or resupplies are pending
+    if PendingResupplies {
+        ExecuteResupplies()
+    } else if PendingRepair {
         ExecuteRepair()
     }
 }
 
-OnSettingBackTimer() {
-    global IsRunning, ActionInProgress, SettingBackTimerActive
+; ========================================================================================
+; Timer Event 2: Repair Timer
+; ========================================================================================
+OnRepairTimer() {
+    global IsRunning, ActionInProgress, ResuppliesInProgress, PendingRepair
     
-    if !IsRunning || !SettingBackTimerActive
+    if !IsRunning
+        return
+    
+    ; Check if Resupplies is in progress
+    if ResuppliesInProgress {
+        PendingRepair := true
+        return
+    }
+    
+    ; Check if other actions are in progress
+    if ActionInProgress {
+        PendingRepair := true
+        return
+    }
+    
+    ExecuteRepair()
+}
+
+ExecuteRepair() {
+    global ActionInProgress, PendingRepair, IsRunning, LastRepairTime
+    
+    if !IsRunning
+        return
+    
+    ActionInProgress := true
+    PendingRepair := false
+    
+    Send(FleetKey)
+    Sleep(1250)
+    NavigateToRepairShip()
+    Send(FleetKey)
+    Sleep(250)
+    
+    ; Update last repair time
+    global LastRepairTime := A_TickCount
+    
+    ActionInProgress := false
+}
+
+; ========================================================================================
+; Timer Event 3: Resupplies Timer
+; ========================================================================================
+OnResuppliesTimer() {
+    global IsRunning, ActionInProgress, PendingResupplies, FleetRisk
+    
+    if !IsRunning
+        return
+    
+    ; Skip if Minimize Profit mode
+    if (FleetRisk = "Minimize Profit")
+        return
+    
+    ; Check if other actions are in progress
+    if ActionInProgress {
+        PendingResupplies := true
+        return
+    }
+    
+    ExecuteResupplies()
+}
+
+ExecuteResupplies() {
+    global ActionInProgress, ResuppliesInProgress, PendingResupplies, PendingRepair
+    global IsRunning, LastResuppliesTime, FleetRisk
+    
+    if !IsRunning
+        return
+    
+    ; Skip if Minimize Profit mode
+    if (FleetRisk = "Minimize Profit") {
+        PendingResupplies := false
+        return
+    }
+    
+    ActionInProgress := true
+    ResuppliesInProgress := true
+    PendingResupplies := false
+    
+    Send(RavenKey)
+    Sleep(250)
+    ClickCenter()
+    NavigateToResupplies()
+    Sleep(500)
+    NavigateToYes()
+    
+    ; Update last resupplies time
+    global LastResuppliesTime := A_TickCount
+    
+    ResuppliesInProgress := false
+    ActionInProgress := false
+    
+    ; Execute pending repair if flagged
+    if PendingRepair {
+        Sleep(1000)
+        ExecuteRepair()
+    }
+}
+
+; ========================================================================================
+; Timer Event 4: Resume Task Timer
+; ========================================================================================
+OnResumeTaskTimer() {
+    global IsRunning, ActionInProgress, ResumeTaskTimerActive, RecoverTimerActive
+    
+    if !IsRunning || !ResumeTaskTimerActive
         return
     
     ; Wait if action is in progress
@@ -817,6 +1009,11 @@ OnSettingBackTimer() {
     NavigateToTask(Deck1Task)
     Sleep(2500)
     
+    if !IsRunning {
+        ActionInProgress := false
+        return
+    }
+    
     ; Restore Deck 2
     Send(RavenKey)
     Sleep(250)
@@ -825,6 +1022,11 @@ OnSettingBackTimer() {
     NavigateToDeck2()
     NavigateToTask(Deck2Task)
     Sleep(2500)
+    
+    if !IsRunning {
+        ActionInProgress := false
+        return
+    }
     
     ; Restore Deck 3
     Send(RavenKey)
@@ -835,6 +1037,11 @@ OnSettingBackTimer() {
     NavigateToTask(Deck3Task)
     Sleep(2500)
     
+    if !IsRunning {
+        ActionInProgress := false
+        return
+    }
+    
     ; Restore Deck 4
     Send(RavenKey)
     Sleep(250)
@@ -843,66 +1050,22 @@ OnSettingBackTimer() {
     NavigateToDeck4()
     NavigateToTask(Deck4Task)
     Sleep(2500)
-
-    ; Restock if Maximize Profit
-    if (FleetRisk = "Maximize Profit") {
-        Send(RavenKey)
-        Sleep(250)
-        ClickCenter()
-        NavigateToRestock()
-        Sleep(500)
-        NavigateToYes()
-    }
     
-    ; Switch timers
-    global SettingBackTimerActive := false
-    global RecoverRestockTimerActive := true
-    global LastRecoverRestockTime := A_TickCount
-    SetTimer(SettingBackTimerObj, 0)
+    ; Switch back to Recover Timer
+    global ResumeTaskTimerActive := false
+    global RecoverTimerActive := true
+    global LastRecoverTime := A_TickCount
+    SetTimer(ResumeTaskTimerObj, 0)
     
-    global RecoverRestockTimerObj := () => OnRecoverRestockTimer()
-    SetTimer(RecoverRestockTimerObj, RecoverRestockTimer * 1000)
+    global RecoverTimerObj := () => OnRecoverTimer()
+    SetTimer(RecoverTimerObj, RecoverTimer * 1000)
     
     ActionInProgress := false
     
-    ; Check if repair is pending
-    if PendingRepair {
+    ; Check if repair or resupplies are pending
+    if PendingResupplies {
+        ExecuteResupplies()
+    } else if PendingRepair {
         ExecuteRepair()
     }
-}
-
-OnRepairTimer() {
-    global IsRunning, ActionInProgress, PendingRepair
-    
-    if !IsRunning
-        return
-    
-    if ActionInProgress {
-        PendingRepair := true
-        return
-    }
-    
-    ExecuteRepair()
-}
-
-ExecuteRepair() {
-    global ActionInProgress, PendingRepair, IsRunning, LastRepairTime
-    
-    if !IsRunning
-        return
-    
-    ActionInProgress := true
-    PendingRepair := false
-    
-    Send(FleetKey)
-    Sleep(1250)
-    NavigateToRepairShip()
-    Sleep(1250)
-    Send(FleetKey)
-    Sleep(250)
-    
-    ; Update last repair time
-    global LastRepairTime := A_TickCount
-    
-    ActionInProgress := false
 }
